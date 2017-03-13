@@ -96,18 +96,16 @@ public class DomainMapper {
     private static DomainParameterDTO[] mapParameters(List<Parameter> parameters) {
         DomainParameterDTO[] domainParameterDTOs = new DomainParameterDTO[parameters.size()];
         int i = 0;
-        if (parameters != null) {
-            for (Parameter parameter : parameters) {
-                DomainParameterDTO domainParameterDTO = new DomainParameterDTO();
-                domainParameterDTO.setName(parameter.getName());
-                domainParameterDTO.setType(parameter.getType());
-                domainParameterDTO.setDefaultValue(parameter.getDefaultValue());
-                domainParameterDTO.setDescription(parameter.getDescription());
-                domainParameterDTO.setDisplayName(parameter.getDisplayName());
-                domainParameterDTO.setOptions(parameter.getOptions());
-                domainParameterDTOs[i] = domainParameterDTO;
-                i++;
-            }
+        for (Parameter parameter: parameters) {
+            DomainParameterDTO domainParameterDTO = new DomainParameterDTO();
+            domainParameterDTO.setName(parameter.getName());
+            domainParameterDTO.setType(parameter.getType());
+            domainParameterDTO.setDefaultValue(parameter.getDefaultValue());
+            domainParameterDTO.setDescription(parameter.getDescription());
+            domainParameterDTO.setDisplayName(parameter.getDisplayName());
+            domainParameterDTO.setOptions(parameter.getOptions());
+            domainParameterDTOs[i] = domainParameterDTO;
+            i++;
         }
         return domainParameterDTOs;
     }

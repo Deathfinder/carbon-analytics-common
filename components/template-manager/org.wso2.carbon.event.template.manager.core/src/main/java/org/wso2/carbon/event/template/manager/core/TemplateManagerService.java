@@ -99,7 +99,4 @@ public interface TemplateManagerService {
      */
     public void deleteConfiguration(String domainName, String configName) throws TemplateManagerException;
 
-    public void refreshDomains() throws TemplateManagerException;
-
-
 }

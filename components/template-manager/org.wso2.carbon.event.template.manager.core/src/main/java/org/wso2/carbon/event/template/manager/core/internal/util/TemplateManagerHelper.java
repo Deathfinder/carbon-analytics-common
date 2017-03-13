@@ -29,7 +29,12 @@ import org.wso2.carbon.event.template.manager.core.exception.TemplateManagerExce
 import org.wso2.carbon.event.template.manager.core.internal.ds.TemplateManagerValueHolder;
 import org.wso2.carbon.event.template.manager.core.structure.configuration.AttributeMapping;
 import org.wso2.carbon.event.template.manager.core.structure.configuration.ScenarioConfiguration;
-import org.wso2.carbon.event.template.manager.core.structure.domain.*;
+import org.wso2.carbon.event.template.manager.core.structure.domain.Artifact;
+import org.wso2.carbon.event.template.manager.core.structure.domain.Domain;
+import org.wso2.carbon.event.template.manager.core.structure.domain.Scenario;
+import org.wso2.carbon.event.template.manager.core.structure.domain.Script;
+import org.wso2.carbon.event.template.manager.core.structure.domain.StreamMapping;
+import org.wso2.carbon.event.template.manager.core.structure.domain.Template;
 import org.wso2.carbon.registry.api.RegistryException;
 import org.wso2.carbon.registry.core.Registry;
 import org.wso2.carbon.registry.core.RegistryConstants;
@@ -51,7 +56,10 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -111,42 +119,6 @@ public class TemplateManagerHelper {
         }
 
         return domains;
-    }
-
-     /**
-     * Load All domains templates available in the file directory
-     */
-    public static Map<String, Domain> reloadDomains(Map<String, Domain> currentDomainsMap) {
-        //Get domain template folder and load all the domain template files
-        File folder = new File(TemplateManagerConstants.TEMPLATE_DOMAIN_PATH);
-
-        File[] files = folder.listFiles();
-        if (files != null) {
-            for (final File fileEntry : files) {
-                if (fileEntry.isFile() && fileEntry.getName().endsWith("xml")) {
-                    Domain domain = unmarshalDomain(fileEntry);
-                    if (domain != null) {
-                        try {
-                            validateTemplateDomainConfig(domain);
-                        } catch (TemplateManagerException e) {
-                            //In case an invalid template configuration is found, this loader logs
-                            // an error message and aborts loading that particular template domain config.
-                            //However, this will load all the valid template domain configurations.
-                            log.error("Invalid Template Domain configuration file found: " + fileEntry.getName(), e);
-                        }
-                        if (!currentDomainsMap.containsKey(domain.getName())) {
-                            log.info("Found new domain - " + fileEntry.getName());
-                        }
-                            currentDomainsMap.put(domain.getName(), domain);
-                    } else {
-                        log.error("Invalid Template Domain configuration file found: " + fileEntry
-                                        .getName());
-                    }
-
-                }
-            }
-        }
-        return currentDomainsMap;
     }
 
     /**
@@ -249,12 +221,10 @@ public class TemplateManagerHelper {
             }
         }
         //now, deploy templated artifacts
-
         for (Scenario scenario : domain.getScenarios().getScenario()) {
             if (scenario.getType().equals(configuration.getScenario())) {
                 Map<String, Integer> artifactTypeCountingMap = new HashMap<>();
-                List<Template> sortedTemplateList = sortTempalteList(scenario.getTemplates());
-                for (Template template : sortedTemplateList) {
+                for (Template template : scenario.getTemplates().getTemplate()) {
                     String artifactType = template.getType();
                     Integer artifactCount = artifactTypeCountingMap.get(artifactType);
                     if (artifactCount == null) {
@@ -264,8 +234,7 @@ public class TemplateManagerHelper {
                     }
                     String artifactId = TemplateManagerHelper.getTemplatedArtifactId(domain.getName(),
                             scenario.getType(), configuration.getName(), artifactType, artifactCount);
-                    TemplateDeployer deployer = TemplateManagerValueHolder.getTemplateDeployers().get(
-                                    template.getType());
+                    TemplateDeployer deployer = TemplateManagerValueHolder.getTemplateDeployers().get(template.getType());
                     if (deployer != null) {
                         DeployableTemplate deployableTemplate = new DeployableTemplate();
                         String updatedScript = updateArtifactParameters(configuration, template.getValue(), scriptEngine);
@@ -282,18 +251,7 @@ public class TemplateManagerHelper {
             }
         }
     }
-    private static List<Template> sortTempalteList(Templates templates) {
-        List<Template> sortedTemplateList = templates.getTemplate();
-        Collections.sort(sortedTemplateList, new Comparator<Template>() {
-            public int compare(Template o1, Template o2) {
-                if (o1.getType().equals("eventstream")) {
-                    return -1;
-                }
-                return o1.getType().toString().compareTo(o2.getType().toString());
-            }
-        });
-        return sortedTemplateList;
-    }
+
     /**
      * Create a JavaScript engine packed with given scripts. If two scripts have methods with same name,
      * later method will override the previous method.
@@ -305,8 +263,7 @@ public class TemplateManagerHelper {
     public static ScriptEngine createJavaScriptEngine(Domain domain) throws TemplateDeploymentException {
 
         ScriptEngineManager scriptEngineManager = new ScriptEngineManager();
-        ScriptEngine scriptEngine = scriptEngineManager.getEngineByName(
-                        TemplateManagerConstants.JAVASCRIPT_ENGINE_NAME);
+        ScriptEngine scriptEngine = scriptEngineManager.getEngineByName(TemplateManagerConstants.JAVASCRIPT_ENGINE_NAME);
 
         if (scriptEngine == null) {
             // Exception will be thrown later, only if function calls are used in the template
@@ -455,7 +412,7 @@ public class TemplateManagerHelper {
                         String toStream = streamMapping.getTo();
                         for (Map.Entry entry : configuration.getParameterMap().entrySet()) {
                             toStream = toStream.replaceAll(TemplateManagerConstants.REGEX_NAME_VALUE
-                                            + entry.getKey().toString(), entry.getValue().toString());
+                                    + entry.getKey().toString(), entry.getValue().toString());
                         }
                         streamIdList.add(replaceScriptExpressions(toStream, scriptEngine));
                     }
@@ -495,8 +452,7 @@ public class TemplateManagerHelper {
 
             queryBuilder.append(FROM).append(internalFromStreamId).append(" \n").append(SELECT);
             for (AttributeMapping attributeMapping : streamMapping.getAttributeMappings().getAttributeMapping()) {
-                queryBuilder.append(attributeMapping.getFrom()).append(AS).append(
-                                attributeMapping.getTo()).append(", ");
+                queryBuilder.append(attributeMapping.getFrom()).append(AS).append(attributeMapping.getTo()).append(", ");
             }
             queryBuilder.deleteCharAt(queryBuilder.length() - 2);
             queryBuilder.append("\n").append(INSERT_INTO).append(internalToStreamId).append(";\n\n");
@@ -519,8 +475,7 @@ public class TemplateManagerHelper {
     private static String generateDefineStreamStatements(DefineStreamTypes type, String streamId, String internalStreamId)
             throws TemplateManagerException {
         try {
-            StreamDefinition streamDefinition = TemplateManagerValueHolder.getEventStreamService().getStreamDefinition(
-                            streamId);
+            StreamDefinition streamDefinition = TemplateManagerValueHolder.getEventStreamService().getStreamDefinition(streamId);
             if (streamDefinition == null) {
                 throw new TemplateManagerException("No stream has being deployed with Stream ID: " + streamId);
             }
@@ -529,22 +484,17 @@ public class TemplateManagerHelper {
             StringBuilder streamDefBuilder = new StringBuilder(DEFINE_STREAM + internalStreamId + " (");
             if (streamDefinition.getMetaData() != null) {
                 for (Attribute metaAttribute : streamDefinition.getMetaData()) {
-                    streamDefBuilder.append(TemplateManagerConstants.META_PREFIX)
-                                    .append(metaAttribute.getName()).append(" ").append(
-                                    metaAttribute.getType()).append(", ");
+                    streamDefBuilder.append(TemplateManagerConstants.META_PREFIX).append(metaAttribute.getName()).append(" ").append(metaAttribute.getType()).append(", ");
                 }
             }
             if (streamDefinition.getCorrelationData() != null) {
                 for (Attribute corrAttribute : streamDefinition.getCorrelationData()) {
-                    streamDefBuilder.append(TemplateManagerConstants.CORRELATION_PREFIX)
-                                    .append(corrAttribute.getName()).append(" ").append(
-                                    corrAttribute.getType()).append(", ");
+                    streamDefBuilder.append(TemplateManagerConstants.CORRELATION_PREFIX).append(corrAttribute.getName()).append(" ").append(corrAttribute.getType()).append(", ");
                 }
             }
             if (streamDefinition.getPayloadData() != null) {
                 for (Attribute payloadAttribute : streamDefinition.getPayloadData()) {
-                    streamDefBuilder.append(payloadAttribute.getName()).append(" ").append(
-                                    payloadAttribute.getType()).append(", ");
+                    streamDefBuilder.append(payloadAttribute.getName()).append(" ").append(payloadAttribute.getType()).append(", ");
                 }
             }
 
@@ -562,7 +512,7 @@ public class TemplateManagerHelper {
             throws TemplateManagerException {
         try {
             Registry registry = TemplateManagerValueHolder.getRegistryService()
-                            .getConfigSystemRegistry(PrivilegedCarbonContext.getThreadLocalCarbonContext().getTenantId());
+                    .getConfigSystemRegistry(PrivilegedCarbonContext.getThreadLocalCarbonContext().getTenantId());
 
             StringWriter fileContent = new StringWriter();
             JAXBContext jaxbContext = JAXBContext.newInstance(ScenarioConfiguration.class);
@@ -610,7 +560,7 @@ public class TemplateManagerHelper {
             throws TemplateManagerException {
         try {
             Registry registry = TemplateManagerValueHolder.getRegistryService()
-                            .getConfigSystemRegistry(PrivilegedCarbonContext.getThreadLocalCarbonContext().getTenantId());
+                    .getConfigSystemRegistry(PrivilegedCarbonContext.getThreadLocalCarbonContext().getTenantId());
 
             registry.delete(TemplateManagerConstants.TEMPLATE_CONFIG_PATH + RegistryConstants.PATH_SEPARATOR
                     + domainName + RegistryConstants.PATH_SEPARATOR + configName + TemplateManagerConstants.CONFIG_FILE_EXTENSION);
@@ -632,9 +582,8 @@ public class TemplateManagerHelper {
 
         ScenarioConfiguration scenarioConfiguration = null;
         try {
-            Registry registry = TemplateManagerValueHolder.getRegistryService()
-                            .getConfigSystemRegistry(
-                                            PrivilegedCarbonContext.getThreadLocalCarbonContext().getTenantId());
+            Registry registry = TemplateManagerValueHolder.getRegistryService().getConfigSystemRegistry(PrivilegedCarbonContext
+                    .getThreadLocalCarbonContext().getTenantId());
 
             if (registry.resourceExists(path)) {
                 Resource configFile = registry.get(path);
