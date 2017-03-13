@@ -132,6 +132,9 @@ public class CarbonEventReceiverService implements EventReceiverService {
     @Override
     public void undeployInactiveEventReceiverConfiguration(String filename)
             throws EventReceiverConfigurationException {
+        if (!filename.endsWith(EventReceiverConstants.ER_CONFIG_FILE_EXTENSION_WITH_DOT)) {
+            filename = filename + EventReceiverConstants.ER_CONFIG_FILE_EXTENSION_WITH_DOT;
+        }
         EventReceiverConfigurationFileSystemInvoker.delete(filename);
 
     }

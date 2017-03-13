@@ -132,7 +132,9 @@ public class CarbonEventPublisherService implements EventPublisherService {
     @Override
     public void undeployInactiveEventPublisherConfiguration(String filename)
             throws EventPublisherConfigurationException {
-
+        if (!filename.endsWith(EventPublisherConstants.EF_CONFIG_FILE_EXTENSION_WITH_DOT)) {
+            filename = filename + EventPublisherConstants.EF_CONFIG_FILE_EXTENSION_WITH_DOT;
+        }
         EventPublisherConfigurationFilesystemInvoker.delete(filename);
     }
 
