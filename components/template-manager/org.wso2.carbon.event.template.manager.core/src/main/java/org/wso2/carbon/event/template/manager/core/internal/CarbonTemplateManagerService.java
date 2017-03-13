@@ -17,6 +17,8 @@ package org.wso2.carbon.event.template.manager.core.internal;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.quartz.*;
+import org.quartz.impl.StdSchedulerFactory;
 import org.wso2.carbon.context.PrivilegedCarbonContext;
 import org.wso2.carbon.event.template.manager.core.DeployableTemplate;
 import org.wso2.carbon.event.template.manager.core.TemplateDeployer;
@@ -24,27 +26,22 @@ import org.wso2.carbon.event.template.manager.core.TemplateDeploymentException;
 import org.wso2.carbon.event.template.manager.core.TemplateManagerService;
 import org.wso2.carbon.event.template.manager.core.exception.TemplateManagerException;
 import org.wso2.carbon.event.template.manager.core.internal.ds.TemplateManagerValueHolder;
+import org.wso2.carbon.event.template.manager.core.internal.util.CheckTemplatesJob;
 import org.wso2.carbon.event.template.manager.core.internal.util.TemplateManagerConstants;
 import org.wso2.carbon.event.template.manager.core.internal.util.TemplateManagerHelper;
 import org.wso2.carbon.event.template.manager.core.structure.configuration.ScenarioConfiguration;
 import org.wso2.carbon.event.template.manager.core.structure.configuration.StreamMapping;
 import org.wso2.carbon.event.template.manager.core.structure.configuration.StreamMappings;
-import org.wso2.carbon.event.template.manager.core.structure.domain.Artifact;
-import org.wso2.carbon.event.template.manager.core.structure.domain.Domain;
-import org.wso2.carbon.event.template.manager.core.structure.domain.Scenario;
-import org.wso2.carbon.event.template.manager.core.structure.domain.Template;
+import org.wso2.carbon.event.template.manager.core.structure.domain.*;
 import org.wso2.carbon.registry.api.RegistryException;
 import org.wso2.carbon.registry.core.Registry;
 import org.wso2.carbon.registry.core.RegistryConstants;
 import org.wso2.carbon.registry.core.Resource;
-
+import static org.quartz.CronScheduleBuilder.cronSchedule;
+import static org.quartz.JobBuilder.newJob;
+import static org.quartz.TriggerBuilder.newTrigger;
 import javax.script.ScriptEngine;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
+import java.util.*;
 
 /**
  * Class consist of the implementations of interface TemplateManagerService
@@ -57,12 +54,22 @@ public class CarbonTemplateManagerService implements TemplateManagerService {
     public CarbonTemplateManagerService() throws TemplateManagerException {
         domains = new HashMap<>();
         domains = TemplateManagerHelper.loadDomains();
+        try {
+            SchedulerFactory sf = new StdSchedulerFactory();
+            Scheduler sched = sf.getScheduler();
+            JobDetail job = newJob(CheckTemplatesJob.class).build();
+            CronTrigger trigger = newTrigger().withSchedule(cronSchedule("0 0/1 * 1/1 * ? *")).build();
+            sched.scheduleJob(job, trigger);
+            sched.start();
+        } catch (SchedulerException e) {
+            e.printStackTrace();
+        }
     }
-
 
     @Override
     public List<String> saveConfiguration(ScenarioConfiguration configuration)
             throws TemplateManagerException {
+
         try {
             Registry registry = TemplateManagerValueHolder.getRegistryService()
                     .getConfigSystemRegistry(PrivilegedCarbonContext.getThreadLocalCarbonContext().getTenantId());
@@ -78,13 +85,24 @@ public class CarbonTemplateManagerService implements TemplateManagerService {
         }  catch (RegistryException e) {
             throw new TemplateManagerException("Could not load the registry for Tenant: " +
                                                PrivilegedCarbonContext.getThreadLocalCarbonContext().getTenantDomain(true), e);
+        } catch (Exception e) {
+            deleteConfiguration(configuration.getDomain(), configuration.getName());
+            throw new TemplateManagerException("Failed to save Scenario: " + configuration.getName() + ", for Domain: "
+                                               + configuration.getDomain(), e);
         }
     }
 
     @Override
     public List<String> editConfiguration(ScenarioConfiguration configuration)
             throws TemplateManagerException {
-        return processSaveConfiguration(configuration);
+        try {
+            return processSaveConfiguration(configuration);
+        } catch (Exception e) {
+            deleteConfiguration(configuration.getDomain(), configuration.getName());
+            throw new TemplateManagerException("Failed to save Scenario: "
+                            + configuration.getName() + ", for Domain: "
+                            + configuration.getDomain(), e);
+        }
     }
 
 
@@ -222,7 +240,8 @@ public class CarbonTemplateManagerService implements TemplateManagerService {
             for (Scenario scenario : domain.getScenarios().getScenario()) {
                 if (scenarioConfig.getScenario().equals(scenario.getType())) {
                     Map<String,Integer> artifactTypeCountingMap = new HashMap<>();
-                    for (Template template : scenario.getTemplates().getTemplate()) {
+                     List<Template> sortedTemplateList = sortTempalteList(scenario.getTemplates());
+                    for (Template template : sortedTemplateList) {
                         String artifactType = template.getType();
                         Integer artifactCount = artifactTypeCountingMap.get(artifactType);
                         if (artifactCount == null) {
@@ -264,6 +283,26 @@ public class CarbonTemplateManagerService implements TemplateManagerService {
         }
     }
 
+    @Override
+    public void refreshDomains() throws TemplateManagerException {
+        log.debug("Start refresh domains, current domains map - " + domains.keySet() + "");
+       TemplateManagerHelper.reloadDomains(domains);
+        log.debug("End refresh domains, updated domains map - " + domains.keySet() + "");
+
+    }
+
+    private List<Template> sortTempalteList(Templates templates) {
+        List<Template> sortedTemplateList = templates.getTemplate();
+        Collections.sort(sortedTemplateList, new Comparator<Template>() {
+            public int compare(Template o1, Template o2) {
+                if (o1.getType().equals("eventpublisher") || o1.getType().equals("eventreceiver")) {
+                    return -1;
+                }
+                return o1.getType().toString().compareTo(o2.getType().toString());
+            }
+        });
+        return sortedTemplateList;
+    }
     private List<String> processSaveConfiguration(ScenarioConfiguration configuration) throws TemplateManagerException {
         try {
             Domain domain = domains.get(configuration.getDomain());
@@ -275,7 +314,7 @@ public class CarbonTemplateManagerService implements TemplateManagerService {
             //so the caller (the UI) can prompt the user to map these streams to his own streams.
             return TemplateManagerHelper.getStreamIDsToBeMapped(configuration, getDomain(configuration.getDomain()), scriptEngine);
         } catch (TemplateDeploymentException e) {
-            TemplateManagerHelper.deleteConfigWithoutUndeploy(configuration.getDomain(), configuration.getName());
+//            TemplateManagerHelper.deleteConfigWithoutUndeploy(configuration.getDomain(), configuration.getName());
             throw new TemplateManagerException("Failed to save Scenario: " + configuration.getName() + ", for Domain: "
                                                + configuration.getDomain(), e);
         }
