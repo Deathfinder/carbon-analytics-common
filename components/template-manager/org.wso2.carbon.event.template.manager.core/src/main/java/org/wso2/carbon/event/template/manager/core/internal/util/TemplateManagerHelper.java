@@ -611,9 +611,11 @@ public class TemplateManagerHelper {
         try {
             Registry registry = TemplateManagerValueHolder.getRegistryService()
                     .getConfigSystemRegistry(PrivilegedCarbonContext.getThreadLocalCarbonContext().getTenantId());
-
-            registry.delete(TemplateManagerConstants.TEMPLATE_CONFIG_PATH + RegistryConstants.PATH_SEPARATOR
-                    + domainName + RegistryConstants.PATH_SEPARATOR + configName + TemplateManagerConstants.CONFIG_FILE_EXTENSION);
+            String resourcePath = TemplateManagerConstants.TEMPLATE_CONFIG_PATH + RegistryConstants.PATH_SEPARATOR
+                    + domainName + RegistryConstants.PATH_SEPARATOR + configName + TemplateManagerConstants.CONFIG_FILE_EXTENSION;
+            if (registry.resourceExists(resourcePath)) {
+                registry.delete(resourcePath);
+            }
         } catch (RegistryException e) {
             throw new TemplateManagerException("Failed to delete scenario from the registry. Scenario name: " + configName
                     + ", Domain name: " + domainName, e);

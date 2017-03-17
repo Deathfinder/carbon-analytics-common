@@ -123,14 +123,23 @@ public class EventReceiverTemplateDeployer implements TemplateDeployer {
             String mappingResourcePath = EventReceiverTemplateDeployerConstants.META_INFO_COLLECTION_PATH + RegistryConstants.PATH_SEPARATOR + receiverName;
             if (registry.resourceExists(mappingResourcePath)) {
                 String existingReceiverConfigXml = getExistingEventReceiverConfigXml(tenantId, receiverName);  //not handling existingConfig==null case because that will make this component too complicated.
-                if (EventReceiverTemplateDeployerHelper.areReceiverConfigXmlsSimilar(receiverConfig, existingReceiverConfigXml)) {
-                    EventReceiverTemplateDeployerHelper.updateRegistryMaps(registry, artifactId, receiverName);
-                    log.info("[Artifact ID: " + artifactId + "] Event receiver: " + receiverName + " has already being deployed.");
+                if (existingReceiverConfigXml != null) {
+                    if (EventReceiverTemplateDeployerHelper.areReceiverConfigXmlsSimilar(receiverConfig, existingReceiverConfigXml)) {
+                        EventReceiverTemplateDeployerHelper.updateRegistryMaps(registry, artifactId, receiverName);
+                        log.info("[Artifact ID: " + artifactId + "] Event receiver: " + receiverName + " has already being deployed.");
+                    } else {
+                        throw new TemplateDeploymentException("[Artifact ID: " + artifactId + "] Failed to deploy Event Receiver with name: " + receiverName +
+                                ", as there exists another Event Receiver with the same name " +
+                                "but different configuration.");
+                    }
                 } else {
-                    throw new TemplateDeploymentException("[Artifact ID: " + artifactId + "] Failed to deploy Event Receiver with name: " + receiverName +
-                                                          ", as there exists another Event Receiver with the same name " +
-                                                          "but different configuration.");
+                    //Fix for existingReceiverConfigXml == null, when resource exists after previous unsuccessful deploy
+                    // but without configuration
+                    registry.delete(mappingResourcePath);
+                    EventReceiverTemplateDeployerHelper.updateRegistryMaps(registry, artifactId, receiverName);
+                    EventReceiverTemplateDeployerValueHolder.getEventReceiverService().deployEventReceiverConfiguration(receiverConfig);
                 }
+
             } else {
                 EventReceiverTemplateDeployerHelper.updateRegistryMaps(registry, artifactId, receiverName);
                 EventReceiverTemplateDeployerValueHolder.getEventReceiverService().deployEventReceiverConfiguration(receiverConfig);

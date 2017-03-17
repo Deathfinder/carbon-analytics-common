@@ -37,11 +37,13 @@ import org.wso2.carbon.registry.api.RegistryException;
 import org.wso2.carbon.registry.core.Registry;
 import org.wso2.carbon.registry.core.RegistryConstants;
 import org.wso2.carbon.registry.core.Resource;
+
+import javax.script.ScriptEngine;
+import java.util.*;
+
 import static org.quartz.CronScheduleBuilder.cronSchedule;
 import static org.quartz.JobBuilder.newJob;
 import static org.quartz.TriggerBuilder.newTrigger;
-import javax.script.ScriptEngine;
-import java.util.*;
 
 /**
  * Class consist of the implementations of interface TemplateManagerService
@@ -314,7 +316,7 @@ public class CarbonTemplateManagerService implements TemplateManagerService {
             //so the caller (the UI) can prompt the user to map these streams to his own streams.
             return TemplateManagerHelper.getStreamIDsToBeMapped(configuration, getDomain(configuration.getDomain()), scriptEngine);
         } catch (TemplateDeploymentException e) {
-//            TemplateManagerHelper.deleteConfigWithoutUndeploy(configuration.getDomain(), configuration.getName());
+            TemplateManagerHelper.deleteConfigWithoutUndeploy(configuration.getDomain(), configuration.getName());
             throw new TemplateManagerException("Failed to save Scenario: " + configuration.getName() + ", for Domain: "
                     + configuration.getDomain(), e);
         }
