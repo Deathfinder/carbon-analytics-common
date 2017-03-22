@@ -392,6 +392,16 @@ public class EventPublisher implements WSO2EventConsumer, EventSync {
             changeDynamicEventAdapterMessageProperties(siddhiEvent.getData(), dynamicProperties, siddhiEvent.getArbitraryDataMap());
         }
 
+        if (!dynamicProperties.containsKey("event_data")) {
+                dynamicProperties.put("event_data",event.toString());
+        } else {
+            try {
+                throw new EventPublisherConfigurationException();
+            } catch (EventPublisherConfigurationException e) {
+                log.error("Cannot add event " + event
+                                + " to dynamic propperty map, key event_data exist", e);
+            }
+        }
         OutputEventAdapterService eventAdapterService = EventPublisherServiceValueHolder.getOutputEventAdapterService();
 //
 //        long timestamp = event.getTimeStamp();
