@@ -17,6 +17,7 @@
  */
 package org.wso2.carbon.event.publisher.core.internal;
 
+import com.google.gson.Gson;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.log4j.Logger;
@@ -393,7 +394,8 @@ public class EventPublisher implements WSO2EventConsumer, EventSync {
         }
 
         if (!dynamicProperties.containsKey("event_data")) {
-                dynamicProperties.put("event_data",event.toString());
+                Gson gson = new Gson();
+                dynamicProperties.put("event_data", gson.toJson(event));
         } else {
             try {
                 throw new EventPublisherConfigurationException();
