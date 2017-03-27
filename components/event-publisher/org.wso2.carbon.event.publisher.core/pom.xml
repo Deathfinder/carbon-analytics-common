@@ -120,4 +120,20 @@
         </plugins>
     </build>
 
+    <distributionManagement>
+        <repository>
+            <id>xm-release-local</id>
+            <uniqueVersion>false</uniqueVersion>
+            <name>Private Artifactory (release)</name>
+            <url>https://artifactory.jbs.com.ua/artifactory/xm-release-local</url>
+        </repository>
+
+        <snapshotRepository>
+            <id>xm-snapshot-local</id>
+            <uniqueVersion>true</uniqueVersion>
+            <name>Private Artifactory (snapshots)</name>
+            <url>https://artifactory.jbs.com.ua/artifactory/xm-snapshot-local</url>
+        </snapshotRepository>
+    </distributionManagement>
+
 </project>
