@@ -293,14 +293,14 @@ public class CarbonTemplateManagerService implements TemplateManagerService {
 
     }
 
-    private List<Template> sortTempalteList(Templates templates) {
+    private static List<Template> sortTempalteList(Templates templates) {
         List<Template> sortedTemplateList = templates.getTemplate();
         Collections.sort(sortedTemplateList, new Comparator<Template>() {
             public int compare(Template o1, Template o2) {
-                if (o1.getType().equals("eventpublisher") || o1.getType().equals("eventreceiver")) {
-                    return -1;
+                if (o1.getType().equals("eventstream")) {
+                    return 1;
                 }
-                return o1.getType().toString().compareTo(o2.getType().toString());
+                return -1;
             }
         });
         return sortedTemplateList;

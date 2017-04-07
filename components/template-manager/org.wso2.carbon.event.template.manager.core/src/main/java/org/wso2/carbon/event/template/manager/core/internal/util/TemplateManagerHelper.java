@@ -289,7 +289,7 @@ public class TemplateManagerHelper {
                 if (o1.getType().equals("eventstream")) {
                     return -1;
                 }
-                return o1.getType().toString().compareTo(o2.getType().toString());
+                return 1;
             }
         });
         return sortedTemplateList;
