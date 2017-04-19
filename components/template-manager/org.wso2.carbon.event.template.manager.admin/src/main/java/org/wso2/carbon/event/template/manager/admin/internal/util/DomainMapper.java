@@ -85,7 +85,9 @@ public class DomainMapper {
             ScenarioInfoDTO scenarioInfoDTO = new ScenarioInfoDTO();
             scenarioInfoDTO.setType(scenario.getType());
             scenarioInfoDTO.setDescription(scenario.getDescription());
-            scenarioInfoDTO.setDomainParameterDTOs(mapParameters(scenario.getParameters().getParameter()));
+            scenarioInfoDTO.setDomainParameterDTOs(mapParameters(scenario.getParameters() != null ? scenario.getParameters()
+                                                                                                                 .getParameter()
+                                                                                                 : null));
             scenarioInfoDTOs[i] = scenarioInfoDTO;
             i++;
         }
@@ -94,7 +96,7 @@ public class DomainMapper {
 
 
     private static DomainParameterDTO[] mapParameters(List<Parameter> parameters) {
-        DomainParameterDTO[] domainParameterDTOs = new DomainParameterDTO[parameters.size()];
+        DomainParameterDTO[] domainParameterDTOs = new DomainParameterDTO[parameters != null ? parameters.size() : 0];
         int i = 0;
         if (parameters != null) {
             for (Parameter parameter : parameters) {
