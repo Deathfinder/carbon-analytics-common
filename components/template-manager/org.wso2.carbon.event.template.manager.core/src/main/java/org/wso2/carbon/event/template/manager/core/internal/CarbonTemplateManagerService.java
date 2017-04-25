@@ -85,9 +85,13 @@ public class CarbonTemplateManagerService implements TemplateManagerService {
             }
             return processSaveConfiguration(configuration);
         }  catch (RegistryException e) {
+            log.warn("Could not load the registry for Tenant: " +
+                    PrivilegedCarbonContext.getThreadLocalCarbonContext().getTenantDomain(true), e);
             throw new TemplateManagerException("Could not load the registry for Tenant: " +
                     PrivilegedCarbonContext.getThreadLocalCarbonContext().getTenantDomain(true), e);
         } catch (Exception e) {
+            log.warn("Failed to save Scenario: " + configuration.getName() + ", for Domain: "
+                    + configuration.getDomain(), e);
             deleteConfiguration(configuration.getDomain(), configuration.getName());
             throw new TemplateManagerException("Failed to save Scenario: " + configuration.getName() + ", for Domain: "
                     + configuration.getDomain(), e);
@@ -101,6 +105,9 @@ public class CarbonTemplateManagerService implements TemplateManagerService {
             return processSaveConfiguration(configuration);
         } catch (Exception e) {
             deleteConfiguration(configuration.getDomain(), configuration.getName());
+            log.warn("Failed to save Scenario: "
+                    + configuration.getName() + ", for Domain: "
+                    + configuration.getDomain(), e);
             throw new TemplateManagerException("Failed to save Scenario: "
                     + configuration.getName() + ", for Domain: "
                     + configuration.getDomain(), e);
@@ -145,6 +152,8 @@ public class CarbonTemplateManagerService implements TemplateManagerService {
             }
 
         } catch (TemplateDeploymentException e) {
+            log.warn("Failed to deploy stream-mapping-execution plan, hence event flow will " +
+                    "not be complete for Template Configuration: " + scenarioConfigName + " in domain: " + domainName, e);
             throw new TemplateManagerException("Failed to deploy stream-mapping-execution plan, hence event flow will " +
                     "not be complete for Template Configuration: " + scenarioConfigName + " in domain: " + domainName, e);
         }
@@ -177,6 +186,8 @@ public class CarbonTemplateManagerService implements TemplateManagerService {
                 }
             }
         } catch (RegistryException e) {
+            log.warn("Registry exception occurred when accessing files at "
+                    + TemplateManagerConstants.TEMPLATE_CONFIG_PATH, e);
             throw new TemplateManagerException("Registry exception occurred when accessing files at "
                     + TemplateManagerConstants.TEMPLATE_CONFIG_PATH, e);
         }
@@ -317,6 +328,8 @@ public class CarbonTemplateManagerService implements TemplateManagerService {
             return TemplateManagerHelper.getStreamIDsToBeMapped(configuration, getDomain(configuration.getDomain()), scriptEngine);
         } catch (TemplateDeploymentException e) {
             TemplateManagerHelper.deleteConfigWithoutUndeploy(configuration.getDomain(), configuration.getName());
+            log.warn("Failed to save Scenario: " + configuration.getName() + ", for Domain: "
+                    + configuration.getDomain(), e);
             throw new TemplateManagerException("Failed to save Scenario: " + configuration.getName() + ", for Domain: "
                     + configuration.getDomain(), e);
         }
